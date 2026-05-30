@@ -1,0 +1,16 @@
+services:
+  api:
+    build: .
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+
+  detector:
+    build: .
+    command: python -m pipeline.detect --dry-run --api-url http://api:8000
+    depends_on:
+      - api
+    environment:
+      - API_URL=http://api:8000

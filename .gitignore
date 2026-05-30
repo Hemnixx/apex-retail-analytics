@@ -1,0 +1,10 @@
+.venv-1
+.vscodes
+footage
+__pycache__
+*.mp4
+torch_cpu.dll
+torch_cpu.dll
+_polars_runtime.pyd
+_polars_runtime.pyd
+.venv
