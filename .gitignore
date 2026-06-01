@@ -3,6 +3,8 @@
 footage
 __pycache__
 *.mp4
+*.sqlite3
+artifacts/*.sqlite3
 torch_cpu.dll
 torch_cpu.dll
 _polars_runtime.pyd
