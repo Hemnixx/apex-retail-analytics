@@ -1,6 +1,6 @@
 # Apex Retail Analytics
 
-![CI](https://github.com/OWNER/REPO/actions/workflows/ci.yml/badge.svg)
+![CI](https://github.com/Hemnixx/apex-retail-analytics/actions/workflows/ci.yml/badge.svg)
 
 This project turns CCTV footage into structured retail analytics.
 
