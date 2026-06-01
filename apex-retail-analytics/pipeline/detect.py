@@ -4,8 +4,8 @@ import argparse
 import json
 import os
 import uuid
-from dataclasses import dataclass
-from datetime import datetime, timezone
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 from urllib import error as urlerror
@@ -29,6 +29,24 @@ class TrackSession:
     last_dwell_frame: int = 0
     current_zone: str = "MAIN_FLOOR"
     is_staff: bool = False
+    zone_history: List[str] = field(default_factory=list)
+    has_billing_queue: bool = False
+    last_visible_frame: int = 0
+    last_center_x: float = 0.0
+    reentry_count: int = 0
+
+
+@dataclass
+class RecentExit:
+    visitor_id: str
+    frame_index: int
+    zone_id: str
+    center_x: float
+
+
+STAFF_ZONE_THRESHOLD = 3
+REENTRY_WINDOW_FRAMES = 90
+QUEUE_ZONE = "CHECKOUT"
 
 
 def utc_now() -> datetime:
@@ -154,8 +172,29 @@ def _classify_zone(center_x: float, frame_width: float) -> str:
     if center_x < frame_width * 0.33:
         return "ENTRY_ZONE"
     if center_x < frame_width * 0.66:
-        return "AISLE_A"
+        return "MAIN_FLOOR"
     return "CHECKOUT"
+
+
+def _match_recent_exit(recent_exits: Sequence[RecentExit], zone_id: str, frame_index: int) -> Optional[RecentExit]:
+    for exit_record in reversed(recent_exits):
+        if frame_index - exit_record.frame_index > REENTRY_WINDOW_FRAMES:
+            continue
+        if exit_record.zone_id == zone_id or exit_record.zone_id == "EXIT" or zone_id == "ENTRY_ZONE":
+            return exit_record
+    return None
+
+
+def _estimate_queue_depth(visible_tracks: Sequence[Tuple[int, Tuple[float, float, float, float], float]], frame_width: float) -> int:
+    if frame_width <= 0:
+        return 0
+    checkout_tracks = 0
+    for _track_id, coordinates, _confidence in visible_tracks:
+        x1, _y1, x2, _y2 = coordinates
+        center_x = (x1 + x2) / 2.0
+        if _classify_zone(center_x, frame_width) == QUEUE_ZONE:
+            checkout_tracks += 1
+    return max(0, checkout_tracks - 1)
 
 
 def _load_runtime_dependencies():
@@ -209,6 +248,7 @@ def _run_real_tracking(
     frame_index = 0
     emitted_events: List[dict] = []
     sessions: Dict[int, TrackSession] = {}
+    recent_exits: List[RecentExit] = []
 
     fps = cap.get(cv2.CAP_PROP_FPS) or 15.0
 
@@ -226,6 +266,7 @@ def _run_real_tracking(
         result = model.track(frame, persist=True, classes=[0], tracker="bytetrack.yaml", verbose=False)[0]
         tracks = _extract_tracks(result)
         visible_track_ids = set()
+        queue_depth = _estimate_queue_depth(tracks, frame_width)
 
         for track_id, coordinates, confidence in tracks:
             visible_track_ids.add(track_id)
@@ -236,23 +277,66 @@ def _run_real_tracking(
             zone_id = _classify_zone(center_x, frame_width)
 
             session = sessions.get(track_id)
+            reentry_detected = False
             if session is None:
+                matched_exit = _match_recent_exit(recent_exits, zone_id, frame_index)
+                visitor_id = matched_exit.visitor_id if matched_exit else f"VIS_{track_id:04d}"
                 session = TrackSession(
-                    visitor_id=f"VIS_{track_id:04d}",
+                    visitor_id=visitor_id,
                     first_seen_frame=frame_index,
                     last_seen_frame=frame_index,
                     current_zone=zone_id,
                 )
+                if matched_exit:
+                    session.reentry_count += 1
+                    session.entry_emitted = True
+                    reentry_detected = True
                 sessions[track_id] = session
 
-            if session.exit_emitted and frame_index - session.last_seen_frame <= stale_frames:
+            zone_changed = zone_id != session.current_zone and session.zone_history
+            if reentry_detected:
+                event_type = "REENTRY"
+            elif session.exit_emitted and frame_index - session.last_seen_frame <= stale_frames:
                 session.exit_emitted = False
                 event_type = "REENTRY"
+            elif not session.entry_emitted:
+                event_type = "ENTRY"
             else:
-                event_type = "ENTRY" if not session.entry_emitted else None
+                event_type = None
 
             session.last_seen_frame = frame_index
+            session.last_visible_frame = frame_index
+            session.last_center_x = center_x
             session.current_zone = zone_id
+            session.zone_history.append(zone_id)
+
+            if zone_changed:
+                session.event_seq += 1
+                emitted_events.append(
+                    build_event_payload(
+                        store_id=store_id,
+                        camera_id=camera_id,
+                        visitor_id=session.visitor_id,
+                        event_type="ZONE_EXIT",
+                        session_seq=session.event_seq,
+                        zone_id=session.zone_history[-2],
+                        confidence=confidence,
+                        source="pipeline.detect.track",
+                    )
+                )
+                session.event_seq += 1
+                emitted_events.append(
+                    build_event_payload(
+                        store_id=store_id,
+                        camera_id=camera_id,
+                        visitor_id=session.visitor_id,
+                        event_type="ZONE_ENTER",
+                        session_seq=session.event_seq,
+                        zone_id=zone_id,
+                        confidence=confidence,
+                        source="pipeline.detect.track",
+                    )
+                )
 
             if event_type:
                 session.event_seq += 1
@@ -270,6 +354,24 @@ def _run_real_tracking(
                 )
                 session.entry_emitted = True
 
+            if zone_id == QUEUE_ZONE and queue_depth > 0:
+                session.has_billing_queue = True
+                session.event_seq += 1
+                emitted_events.append(
+                    build_event_payload(
+                        store_id=store_id,
+                        camera_id=camera_id,
+                        visitor_id=session.visitor_id,
+                        event_type="BILLING_QUEUE_JOIN",
+                        session_seq=session.event_seq,
+                        zone_id=zone_id,
+                        dwell_ms=0,
+                        queue_depth=queue_depth,
+                        confidence=min(1.0, confidence),
+                        source="pipeline.detect.track",
+                    )
+                )
+
             dwell_due = frame_index - session.first_seen_frame >= dwell_interval_frames
             if dwell_due and frame_index - session.last_dwell_frame >= dwell_interval_frames:
                 session.event_seq += 1
@@ -280,7 +382,7 @@ def _run_real_tracking(
                         store_id=store_id,
                         camera_id=camera_id,
                         visitor_id=session.visitor_id,
-                        event_type="DWELL",
+                        event_type="ZONE_DWELL",
                         session_seq=session.event_seq,
                         zone_id=zone_id,
                         dwell_ms=dwell_ms,
@@ -289,11 +391,31 @@ def _run_real_tracking(
                     )
                 )
 
+            distinct_zones = len({zone for zone in session.zone_history if zone})
+            long_session = frame_index - session.first_seen_frame >= dwell_interval_frames * 2
+            if not session.is_staff and long_session and distinct_zones >= STAFF_ZONE_THRESHOLD:
+                session.is_staff = True
+
         for track_id, session in sessions.items():
             if track_id in visible_track_ids or session.exit_emitted:
                 continue
             if frame_index - session.last_seen_frame >= stale_frames:
                 session.event_seq += 1
+                if session.has_billing_queue:
+                    emitted_events.append(
+                        build_event_payload(
+                            store_id=store_id,
+                            camera_id=camera_id,
+                            visitor_id=session.visitor_id,
+                            event_type="BILLING_QUEUE_ABANDON",
+                            session_seq=session.event_seq,
+                            zone_id=QUEUE_ZONE,
+                            dwell_ms=int(((session.last_seen_frame - session.first_seen_frame) / fps) * 1000),
+                            confidence=0.82,
+                            source="pipeline.detect.track",
+                        )
+                    )
+                    session.event_seq += 1
                 session.exit_emitted = True
                 dwell_ms = int(((session.last_seen_frame - session.first_seen_frame) / fps) * 1000)
                 emitted_events.append(
@@ -307,6 +429,14 @@ def _run_real_tracking(
                         dwell_ms=dwell_ms,
                         confidence=1.0,
                         source="pipeline.detect.track",
+                    )
+                )
+                recent_exits.append(
+                    RecentExit(
+                        visitor_id=session.visitor_id,
+                        frame_index=frame_index,
+                        zone_id=session.current_zone,
+                        center_x=session.last_center_x,
                     )
                 )
 
@@ -326,6 +456,14 @@ def _run_real_tracking(
                 dwell_ms=dwell_ms,
                 confidence=1.0,
                 source="pipeline.detect.track",
+            )
+        )
+        recent_exits.append(
+            RecentExit(
+                visitor_id=session.visitor_id,
+                frame_index=frame_index,
+                zone_id=session.current_zone,
+                center_x=session.last_center_x,
             )
         )
 

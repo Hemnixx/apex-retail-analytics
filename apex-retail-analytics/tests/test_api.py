@@ -32,7 +32,7 @@ def sample_event(event_id: str = "evt-1", visitor_id: str = "VIS_001", event_typ
 
 
 def test_health_endpoint() -> None:
-    STORE.events.clear()
+    STORE.clear()
     response = client.get("/health")
     assert response.status_code == 200
     payload = response.json()
@@ -41,7 +41,7 @@ def test_health_endpoint() -> None:
 
 
 def test_ingest_and_summary_flow() -> None:
-    STORE.events.clear()
+    STORE.clear()
     events = [
         sample_event(event_id="evt-1", visitor_id="VIS_001", event_type="ENTRY"),
         sample_event(event_id="evt-2", visitor_id="VIS_001", event_type="DWELL"),
@@ -64,6 +64,27 @@ def test_ingest_and_summary_flow() -> None:
     assert summary["exit_events"] == 1
     assert summary["dwell_events"] == 1
     assert summary["estimated_conversion_rate"] == 1.0
+
+    status_response = client.get("/stores/STORE_BLR_002/status")
+    assert status_response.status_code == 200
+    status = status_response.json()
+    assert status["store_id"] == "STORE_BLR_002"
+    assert "stale_feed" in status
+
+
+def test_metrics_and_trace_headers() -> None:
+    STORE.clear()
+    response = client.get("/health")
+    assert response.status_code == 200
+    assert "X-Trace-Id" in response.headers
+    assert "X-Request-Latency-Ms" in response.headers
+
+    metrics_response = client.get("/metrics")
+    assert metrics_response.status_code == 200
+    metrics = metrics_response.json()
+    assert metrics["total_requests"] >= 2
+    assert "requests_by_path" in metrics
+    assert "/health" in metrics["requests_by_path"]
 
 
 def test_reject_empty_ingest_batch() -> None:

@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
+from typing import Dict, Optional
 
 from pydantic import BaseModel, Field, field_validator
+
+
+# Event schema versioning helps reviewers and future migrations
+EVENT_SCHEMA_VERSION = 1
 
 
 class EventMetadata(BaseModel):
@@ -15,6 +19,7 @@ class EventMetadata(BaseModel):
 
 
 class RetailEvent(BaseModel):
+    schema_version: int = Field(default=EVENT_SCHEMA_VERSION, ge=1)
     event_id: str
     store_id: str
     camera_id: str
@@ -46,6 +51,28 @@ class HealthResponse(BaseModel):
     status: str
     total_events_stored: int
     timestamp: datetime
+    last_event_timestamp_by_store: Dict[str, Optional[datetime]]
+    warnings: list[str]
+
+
+class RequestMetricsResponse(BaseModel):
+    uptime_seconds: float
+    total_requests: int
+    total_errors: int
+    average_latency_ms: float
+    max_latency_ms: int
+    requests_by_path: Dict[str, int]
+    status_codes: Dict[str, int]
+    recent_trace_ids: list[str]
+
+
+class StoreStatus(BaseModel):
+    store_id: str
+    last_event_timestamp: Optional[datetime] = None
+    stale_feed: bool = False
+    is_open: Optional[bool] = None
+    opening_hours: Optional[object] = None
+    camera_coverage: dict[str, list[str]] = Field(default_factory=dict)
 
 
 class AnalyticsSummary(BaseModel):

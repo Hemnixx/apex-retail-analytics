@@ -34,7 +34,7 @@ def sample_event(event_id: str = "evt-1", visitor_id: str = "VIS_001", event_typ
 
 
 def test_anomalies_response_structure() -> None:
-    STORE.events.clear()
+    STORE.clear()
     events = [sample_event(event_id=f"a{i}", visitor_id=f"VIS_{i}", event_type="BILLING_QUEUE_JOIN") for i in range(6)]
     r = client.post("/events/ingest", json=events)
     assert r.status_code == 200
@@ -44,3 +44,16 @@ def test_anomalies_response_structure() -> None:
     payload = a.json()
     assert "anomalies" in payload
     assert isinstance(payload["anomalies"], list)
+
+
+def test_anomalies_detect_entry_exit_imbalance() -> None:
+    STORE.clear()
+    events = [sample_event(event_id=f"b{i}", visitor_id=f"VIS_E{i}", event_type="ENTRY") for i in range(8)]
+    r = client.post("/events/ingest", json=events)
+    assert r.status_code == 200
+
+    a = client.get("/stores/STORE_BLR_002/anomalies")
+    assert a.status_code == 200
+    payload = a.json()
+    anomaly_types = {item["anomaly_type"] for item in payload["anomalies"]}
+    assert "ENTRY_EXIT_IMBALANCE" in anomaly_types
