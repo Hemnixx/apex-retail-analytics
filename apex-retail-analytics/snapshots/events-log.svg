@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720">
+  <rect width="100%" height="100%" fill="#0b1220"/>
+  <text x="28" y="36" font-size="18" fill="#e6eef7">Detector audit log (tail)</text>
+
+  <rect x="28" y="56" width="1144" height="640" rx="6" fill="#000814" stroke="#213547"/>
+  <g font-family="monospace" font-size="12" fill="#cbd5e1">
+    <text x="44" y="84">{"event_id":"5a6efc6d-abd4-4434-9905-28f377d3fa52","store_id":"STORE_BLR_002","camera_id":"CAM_ENTRY_01","visitor_id":"VIS_A","event_type":"ENTRY","timestamp":"2026-05-30T12:11:26Z","zone_id":"ENTRANCE","dwell_ms":0}</text>
+    <text x="44" y="104">{"event_id":"1e3ae41b-d20e-44bd-9b04-c168cf49e410","event_type":"DWELL","dwell_ms":45000,"zone_id":"AISLE_A"}</text>
+    <text x="44" y="124">{"event_id":"3d1a7875-aeac-429f-bc32-9ac571a85437","event_type":"EXIT","dwell_ms":0}</text>
+    <text x="44" y="144">{"event_id":"ed19bb60-5252-44bf-85aa-0f188be5a4e9","visitor_id":"VIS_B","event_type":"ENTRY"}</text>
+    <text x="44" y="164">{"event_id":"928c9666-d8b6-4add-b768-00fdfc3998d7","event_type":"DWELL","dwell_ms":120000}</text>
+    <text x="44" y="184">... (more events in artifacts/detection_events.jsonl)</text>
+  </g>
+</svg>

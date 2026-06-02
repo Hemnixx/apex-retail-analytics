@@ -1,0 +1,3 @@
+# Dry-run detector image for Compose. The real CV stack is optional and
+# intentionally kept out of the default Docker build so `docker compose up`
+# stays fast and non-interactive on reviewer machines.

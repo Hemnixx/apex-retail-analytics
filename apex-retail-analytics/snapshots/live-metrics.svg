@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720">
+  <rect width="100%" height="100%" fill="#ffffff"/>
+  <text x="32" y="40" font-size="20" fill="#111">Live Store Metrics — STORE_BLR_002</text>
+
+  <rect x="32" y="70" width="1120" height="120" rx="6" fill="#f8fafc" stroke="#e6eef7"/>
+  <text x="80" y="100" font-size="14" fill="#0f172a">Total events:</text>
+  <text x="220" y="100" font-size="18" font-weight="bold" fill="#0b63c6">384</text>
+  <text x="80" y="130" font-size="14" fill="#0f172a">Unique visitors:</text>
+  <text x="240" y="130" font-size="18" font-weight="bold" fill="#0b63c6">102</text>
+  <text x="420" y="100" font-size="14" fill="#0f172a">Avg dwell (ms):</text>
+  <text x="580" y="100" font-size="18" font-weight="bold" fill="#0b63c6">6126.44</text>
+  <text x="420" y="130" font-size="14" fill="#0f172a">Conversion (proxy):</text>
+  <text x="640" y="130" font-size="18" font-weight="bold" fill="#0b63c6">56.86%</text>
+
+  <g transform="translate(32,220)">
+    <rect width="1120" height="380" rx="6" fill="#f8f9fb" stroke="#e2e8f0"/>
+    <text x="16" y="28" font-size="14" fill="#0f172a">Funnel</text>
+
+    <rect x="20" y="50" width="260" height="40" rx="4" fill="#ffffff" stroke="#cbd5e1"/>
+    <text x="40" y="75" font-size="13" fill="#111">Entry: 102</text>
+
+    <rect x="320" y="50" width="260" height="40" rx="4" fill="#ffffff" stroke="#cbd5e1"/>
+    <text x="340" y="75" font-size="13" fill="#111">Zone Visit: 58</text>
+
+    <rect x="620" y="50" width="260" height="40" rx="4" fill="#ffffff" stroke="#cbd5e1"/>
+    <text x="640" y="75" font-size="13" fill="#111">Billing Queue: 48</text>
+
+    <rect x="920" y="50" width="160" height="40" rx="4" fill="#ffffff" stroke="#cbd5e1"/>
+    <text x="940" y="75" font-size="13" fill="#111">Purchase: 0</text>
+
+    <text x="16" y="120" font-size="12" fill="#374151">Active sessions: 0 • Engaged sessions: 58 • Queue spikes: 0</text>
+
+    <text x="16" y="160" font-size="12" fill="#6b7280">Last update: dynamic — events appended from detector into artifacts/detection_events.jsonl</text>
+  </g>
+</svg>
