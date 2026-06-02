@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: apex-retail-detector
+    env: docker
+    region: oregon
+    branch: submission-small
+    plan: free
+    buildCommand: ""
+    startCommand: "gunicorn -k uvicorn.workers.UvicornWorker app.main:app -b 0.0.0.0:$PORT"
+    dockerfilePath: Dockerfile.detector
+    envVars:
+      - key: PORT
+        value: "8000"
+      - key: LOG_LEVEL
+        value: "info"

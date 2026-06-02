@@ -1,3 +1,40 @@
+# Apex Retail Analytics — Submission Bundle
+
+This project runs YOLOv8 person detection and ByteTrack-style tracking to generate annotated videos, per-frame events, and screenshot-ready frames.
+
+Quick commands
+
+Run full video detection (creates `artifacts/detection_events.jsonl`):
+
+```
+python -m pipeline.detect --video-path "d:\hackathon\footage\CAM 1.mp4" --model-path "d:\hackathon\yolov8n.pt"
+```
+
+Export top-N screenshots with tracked IDs (already included):
+
+```
+python d:\hackathon\apex-retail-analytics\pipeline\export_screenshots.py --video-path "d:\hackathon\footage\CAM 1.mp4" --model-path "d:\hackathon\yolov8n.pt" --top-n 8 --max-frames 1000
+```
+
+Evaluate detections (requires ground-truth CSV `frame,x1,y1,x2,y2`):
+
+```
+python d:\hackathon\apex-retail-analytics\pipeline\evaluate.py --ground-truth artifacts/ground_truth.csv
+```
+
+Requirements
+
+Install the virtualenv and packages:
+
+```
+python -m venv .venv
+.\.venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+Notes
+- If OpenCV GUI is unavailable, `pipeline/live_view.py` falls back to writing `artifacts/detection_live_output.mp4`.
+- For accurate evaluation, provide frame-level ground-truth boxes in `artifacts/ground_truth.csv`.
 # Apex Retail Analytics
 
 ![CI](https://github.com/Hemnixx/apex-retail-analytics/actions/workflows/ci.yml/badge.svg)

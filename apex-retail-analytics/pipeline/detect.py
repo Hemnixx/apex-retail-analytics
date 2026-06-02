@@ -14,7 +14,9 @@ from urllib import request as urlrequest
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_VIDEO = PROJECT_ROOT / "sample_clip.mp4"
-DEFAULT_MODEL = PROJECT_ROOT / "yolov8n.pt"
+# Prefer model in workspace root (one level up) but fall back to project folder
+_MODEL_CANDIDATES = [PROJECT_ROOT / "yolov8n.pt", PROJECT_ROOT.parent / "yolov8n.pt"]
+DEFAULT_MODEL = next((p for p in _MODEL_CANDIDATES if p.exists()), _MODEL_CANDIDATES[-1])
 DEFAULT_LOG = PROJECT_ROOT / "artifacts" / "detection_events.jsonl"
 
 
