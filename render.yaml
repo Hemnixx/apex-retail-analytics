@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: apex-retail-detector
+    runtime: docker
+    region: oregon
+    branch: submission-small
+    plan: free
+    dockerfilePath: Dockerfile.detector
+    healthCheckPath: /health
+    envVars:
+      - key: LOG_LEVEL
+        value: info
