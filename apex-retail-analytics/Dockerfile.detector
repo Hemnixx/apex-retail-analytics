@@ -9,9 +9,15 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends libgl1 libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements-detector.txt ./
-RUN pip install --no-cache-dir -r requirements-detector.txt
+COPY apex-retail-analytics/requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . ./
+COPY apex-retail-analytics ./apex-retail-analytics
 
-CMD ["python", "-m", "pipeline.detect"]
+WORKDIR /app/apex-retail-analytics
+
+# Expose a default port (Render will override this, but it's good practice)
+EXPOSE 10000
+
+# Use pure uvicorn and dynamically bind to Render's $PORT
+CMD sh -c "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-10000}"
